@@ -1,0 +1,34 @@
+#!/bin/bash
+
+source ../config-funcs.sh
+
+dpcfg=$1
+keyname=$2
+dpkeyfile=$3
+zomafile=$4
+
+# jq input
+domain=$(strip_quotes $(jq '.Gateway.DatapowerDomain' $dpcfg))
+
+echo writing file $zomafile
+
+cat<<EOF > $zomafile
+<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+                   xmlns:ma="http://www.datapower.com/schemas/management">
+    <SOAP-ENV:Header/>
+    <SOAP-ENV:Body>
+        <ma:request domain="$domain">
+            <ma:set-config>
+                <CryptoKey name="$keyname">
+                    <mAdminState>enabled</mAdminState>
+                    <Filename>$dpkeyfile</Filename>
+                    <Password></Password>
+                    <PasswordAlias>off</PasswordAlias>
+                    <Alias></Alias>
+                </CryptoKey>
+            </ma:set-config>
+        </ma:request>
+    </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>
+EOF

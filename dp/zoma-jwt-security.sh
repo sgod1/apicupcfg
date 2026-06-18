@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo zoma-jwt-security todo...

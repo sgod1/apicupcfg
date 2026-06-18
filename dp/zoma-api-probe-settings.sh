@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo zoma-api-probe-settings ... todo...

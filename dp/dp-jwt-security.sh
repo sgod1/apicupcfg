@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo dp-jwt-security todo...
