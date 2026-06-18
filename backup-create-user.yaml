@@ -1,0 +1,21 @@
+- name: create user on backup host
+  hosts: mgmt_subsys_backup
+  become: true
+  tasks:
+   - name: create apicadm user
+     user:
+      name: apicadm
+
+   - name: copy ssh key
+     ansible.posix.authorized_key:
+      user: apicadm
+      state: present
+      key: "{{ lookup('file', '/Users/simon/apic/apic/apicup-config/ssh/key.pub') }}"
+
+   - name: create backup directory
+     file:
+      path: /home/apicadm/backup
+      state: directory
+      owner: apicadm
+      group: apicadm
+      mode: '0750'
