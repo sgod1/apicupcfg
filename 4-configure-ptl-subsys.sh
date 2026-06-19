@@ -5,11 +5,11 @@ export PATH=.:$PATH
 source apic.env
 source config-funcs.sh
 
-cyaml=${1:-"apicupcfg.yaml"}
+cyaml=${1:-"apicupcfg.json"}
 
 project=${2:-"$APICUP_CONFIG"}
 
-outfile="$project/subsys-ptl-config.sh"
+outfile="$project/subsys-ptl-init.sh"
 
 echo "#!/bin/bash" > $outfile
 echo 'export PATH=.:$PATH' >> $outfile
@@ -23,6 +23,15 @@ echo apicup licenses accept $license >> $outfile
 subsys_name=$(jq '.Portal.SubsysName' $cyaml)
 echo apicup subsys create $subsys_name portal >> $outfile
 
+# done
+chmod +x $outfile
+
+outfile="$project/subsys-ptl-config.sh"
+
+echo "#!/bin/bash" > $outfile
+echo 'export PATH=.:$PATH' >> $outfile
+echo "set -x" >> $outfile
+
 # license use
 license_use=$(jq '.LicenseUse' $cyaml)
 echo apicup subsys set $subsys_name license-use=$license_use >> $outfile
@@ -35,36 +44,36 @@ if (isset $subsys_deployment_profile); then deployment_profile=$subsys_deploymen
 echo apicup subsys set $subsys_name deployment-profile=$deployment_profile >> $outfile
 
 # backup
-backup_protocol=$(strip_quotes $(jq '.Backup."backup-protocol"' $cyaml))
+backup_protocol=$(jq '.Portal.SiteBackup."site-backup-protocol"' $cyaml)
 echo "" >> $outfile
 echo apicup subsys set $subsys_name site-backup-protocol=$backup_protocol >> $outfile
 
-auth_user=$(strip_quotes $(jq '.Backup."backup-auth-user"' $cyaml))
+auth_user=$(jq '.Portal.SiteBackup."site-backup-auth-user"' $cyaml)
 echo apicup subsys set $subsys_name site-backup-auth-user="$auth_user" >> $outfile
 
 # no password, use public key
-auth_pass=$(strip_quotes $(jq '.Backup."backup-auth-pass"' $cyaml))
+#auth_pass=$(jq '.Portal.SiteBackup."site-backup-auth-pass"' $cyaml)
+auth_pass=""
 echo apicup subsys set $subsys_name site-backup-auth-pass="$auth_pass" >> $outfile
 
-if [[ $backup_protocol == sftp ]]; then
-backup_auth_ssh_key=$(strip_quotes $(jq '.Backup."backup-auth-ssh-key"' $cyaml))
+backup_auth_ssh_key=$(jq '.Portal.SiteBackup."site-backup-auth-ssh-key"' $cyaml)
 echo apicup certs set $subsys_name site-backup-auth-ssh-key $backup_auth_ssh_key >> $outfile
-fi
 
-backup_host=$(strip_quotes $(jq '.Backup."backup-host"' $cyaml))
+backup_host=$(jq '.Portal.SiteBackup."site-backup-host"' $cyaml)
 echo apicup subsys set $subsys_name site-backup-host=$backup_host >> $outfile
 
-backup_port=$(strip_quotes $(jq '.Backup."backup-port"' $cyaml))
+backup_port=$(jq '.Portal.SiteBackup."site-backup-port"' $cyaml)
 echo apicup subsys set $subsys_name site-backup-port=$backup_port >> $outfile
 
-backup_path=$(strip_quotes $(jq '.Backup."backup-path"' $cyaml))
+backup_path=$(jq '.Portal.SiteBackup."site-backup-path"' $cyaml)
 echo apicup subsys set $subsys_name site-backup-path="$backup_path" >> $outfile
 
-backup_schedule=$(jq '.Backup."backup-schedule"' $cyaml)
+backup_schedule=$(jq '.Portal.SiteBackup."site-backup-schedule"' $cyaml)
 echo apicup subsys set $subsys_name site-backup-schedule="$backup_schedule" >> $outfile
 
-backup_retention=$(strip_quotes $(jq '.DatabaseBackup."backup-repo-retention-full"' $cyaml))
-echo apicup subsys set $subsys_name site-backup-repo-retention-full=$backup_retention >> $outfile
+# "site-backup-certs": "",
+# "site-backup-s3-uri-style": "",
+# "site-priority-list": ""
 
 # logging
 
@@ -106,6 +115,7 @@ hostname=$(jq '.Portal.VmFirstBoot.Hosts[0]| .Name' $cyaml)
 ipaddress=$(jq '.Portal.VmFirstBoot.Hosts[0]| .IpAddress' $cyaml)
 subnetmask=$(jq '.Portal.VmFirstBoot.Hosts[0]| .SubnetMask' $cyaml)
 gateway=$(jq '.Portal.VmFirstBoot.Hosts[0]| .Gateway' $cyaml)
+echo "" >> $outfile
 echo apicup hosts create $subsys_name $hostname $DISK_PASSWORD >> $outfile
 echo "apicup iface create $subsys_name $hostname $device $ipaddress/$subnetmask $gateway" >> $outfile
 
