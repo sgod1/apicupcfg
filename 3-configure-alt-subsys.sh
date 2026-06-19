@@ -5,23 +5,39 @@ export PATH=.:$PATH
 source apic.env
 source config-funcs.sh
 
-cyaml=${1:-"apicupcfg.yaml"}
+cyaml=${1:-"apicupcfg.json"}
 
 project=${2:-"$APICUP_CONFIG"}
 
-outfile="$project/subsys-alt-config.sh"
+# init
+outfile="$project/subsys-alt-init.sh"
 
 echo "#!/bin/bash" > $outfile
 echo 'export PATH=.:$PATH' >> $outfile
 echo "set -x" >> $outfile
 
 # accept license
+# accept license
 license=$(jq '.License' $cyaml)
 echo apicup licenses accept $license >> $outfile
 
 # create subsystem
-subsys_name=$(jq '.Analytics.SubsysName' $cyaml)
+subsys_name=$(strip_quotes $(jq '.Analytics.SubsysName' $cyaml))
 echo apicup subsys create $subsys_name analytics >> $outfile
+
+# done
+chmod +x $outfile
+
+# config
+outfile="$project/subsys-alt-config.sh"
+
+echo "#!/bin/bash" > $outfile
+echo 'export PATH=.:$PATH' >> $outfile
+echo "set -x" >> $outfile
+
+# license use
+license_use=$(jq '.LicenseUse' $cyaml)
+echo apicup subsys set $subsys_name license-use=$license_use >> $outfile
 
 # deployment profile
 deployment_profile=$(jq '.Analytics.DeploymentProfile' $cyaml)
@@ -29,44 +45,43 @@ subsys_deployment_profile=$(jq '.Analytics.DeploymentProfile' $cyaml)
 if (isset $subsys_deployment_profile); then deployment_profile=$subsys_deployment_profile; fi
 echo apicup subsys set $subsys_name deployment-profile=$deployment_profile >> $outfile
 
-# license use
-license_use="production"
-echo apicup subsys set $subsys_name license-use=$license_use >> $outfile
-
 # backup
-backup_protocol=$(strip_quotes $(jq '.Backup."backup-protocol"' $cyaml))
+backup_protocol=$(jq '.Analytics.AnalyticsBackup."analytics-backup-protocol"' $cyaml)
 echo "" >> $outfile
 echo apicup subsys set $subsys_name analytics-backup-protocol=$backup_protocol >> $outfile
 
-backup_auth_user=$(strip_quotes $(jq '.Backup."backup-auth-user"' $cyaml))
+backup_auth_user=$(jq '.Analytics.AnalyticsBackup."analytics-backup-auth-user"' $cyaml)
 echo apicup subsys set $subsys_name analytics-backup-auth-user="$backup_auth_user" >> $outfile
 
 # no password, use public key
-backup_auth_pass=$(strip_quotes $(jq '.Backup."backup-auth-pass"' $cyaml))
+#backup_auth_pass=$(jq '.Analytics.AnalyticsBackup."analytics-backup-auth-pass"' $cyaml)
+backup_pass=""
 echo apicup subsys set $subsys_name analytics-backup-auth-pass="$backup_auth_pass" >> $outfile
 
-if [[ $backup_protocol == sftp ]]; then
-backup_auth_ssh_key=$(strip_quotes $(jq '.Backup."backup-auth-ssh-key"' $cyaml))
-echo apicup certs set $subsys_name analytics-backup-auth-ssh-key $backup_auth_ssh_key >> $outfile
-fi
+#backup_auth_ssh_key=$(jq '.Analytics.AnalyticsBackup."analytics-backup-auth-ssh-key"' $cyaml)
+#echo apicup certs set $subsys_name analytics-backup-auth-ssh-key $backup_auth_ssh_key >> $outfile
 
-backup_host=$(strip_quotes $(jq '.Backup."backup-host"' $cyaml))
+backup_host=$(jq '.Analytics.AnalyticsBackup."analytics-backup-host"' $cyaml)
 echo apicup subsys set $subsys_name analytics-backup-host=$backup_host >> $outfile
 
-backup_port=$(strip_quotes $(jq '.Backup."backup-port"' $cyaml))
+backup_port=$(jq '.Analytics.AnalyticsBackup."analytics-backup-port"' $cyaml)
 echo apicup subsys set $subsys_name analytics-backup-port=$backup_port >> $outfile
 
-backup_path=$(strip_quotes $(jq '.Backup."backup-path"' $cyaml))
+backup_path=$(jq '.Analytics.AnalyticsBackup."analytics-backup-path"' $cyaml)
 echo apicup subsys set $subsys_name analytics-backup-path="$backup_path" >> $outfile
 
-backup_schedule=$(jq '.Backup."backup-schedule"' $cyaml)
+backup_schedule=$(jq '.Analytics.AnalyticsBackup."analytics-backup-schedule"' $cyaml)
 echo apicup subsys set $subsys_name analytics-backup-schedule="$backup_schedule" >> $outfile
 
-backup_retention=$(strip_quotes $(jq '.Backup."backup-repo-retention-full"' $cyaml))
-echo apicup subsys set $subsys_name analytics-backup-repo-retention-full=$backup_retention >> $outfile
+backup_scope=$(jq '.Analytics.AnalyticsBackup."analytics-backup-scope"' $cyaml)
+echo apicup subsys set $subsys_name analytics-backup-scope=$backup_scope >> $outfile
 
-backup_enabled=$(strip_quotes $(jq '.Analytics.Backup."backup-enabled"' $cyaml))
+backup_certs=$(jq '.Analytics.AnalyticsBackup."analytics-backup-certs"' $cyaml)
+echo apicup subsys set $subsys_name analytics-backup-certs=$backup_certs >> $outfile
+
+backup_enabled=$(jq '.Analytics.AnalyticsBackup."analytics-backup-enabled"' $cyaml)
 echo apicup subsys set $subsys_name analytics-backup-enabled=$backup_enabled >> $outfile
+echo "" >> $outfile
 
 # logging
 
@@ -108,6 +123,7 @@ hostname=$(jq '.Analytics.VmFirstBoot.Hosts[0]| .Name' $cyaml)
 ipaddress=$(jq '.Analytics.VmFirstBoot.Hosts[0]| .IpAddress' $cyaml)
 subnetmask=$(jq '.Analytics.VmFirstBoot.Hosts[0]| .SubnetMask' $cyaml)
 gateway=$(jq '.Analytics.VmFirstBoot.Hosts[0]| .Gateway' $cyaml)
+echo "" >> $outfile
 echo apicup hosts create $subsys_name $hostname $DISK_PASSWORD >> $outfile
 echo "apicup iface create $subsys_name $hostname $device $ipaddress/$subnetmask $gateway" >> $outfile
 
@@ -135,6 +151,7 @@ fi
 
 # analytics subsys endpoints
 alyt_ingestion=$(jq '.Analytics.AnalyticsIngestion' $cyaml)
+echo "" >> $outfile
 echo apicup subsys set $subsys_name analytics-ingestion=$alyt_ingestion >> $outfile
 
 # user facing certs

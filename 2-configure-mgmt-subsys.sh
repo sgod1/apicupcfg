@@ -5,11 +5,12 @@ export PATH=.:$PATH
 source apic.env
 source config-funcs.sh
 
-cyaml=${1:-"apicupcfg.yaml"}
+cyaml=${1:-"apicupcfg.json"}
 
 project=${2:-"$APICUP_CONFIG"}
 
-outfile="$project/subsys-mgmt-config.sh"
+# create
+outfile="$project/subsys-mgmt-init.sh"
 
 echo "#!/bin/bash" > $outfile
 echo "" >> $outfile
@@ -24,6 +25,18 @@ echo apicup licenses accept $license >> $outfile
 # create management subsystem
 subsys_name=$(strip_quotes $(jq '.Management.SubsysName' $cyaml))
 echo apicup subsys create $subsys_name management >> $outfile
+
+# done
+chmod +x $outfile
+
+# config
+outfile="$project/subsys-mgmt-config.sh"
+
+echo "#!/bin/bash" > $outfile
+echo "" >> $outfile
+echo 'export PATH=.:$PATH' >> $outfile
+echo "set -x" >> $outfile
+echo "" >> $outfile
 
 # license use for management subsys
 license_use=$(jq '.LicenseUse' $cyaml)
@@ -43,9 +56,10 @@ echo apicup subsys set $subsys_name database-backup-protocol=$backup_protocol >>
 backup_auth_user=$(jq '.Management.DatabaseBackup."database-backup-auth-user"' $cyaml)
 echo apicup subsys set $subsys_name database-backup-auth-user="$backup_auth_user" >> $outfile
 
-# no password, use public key, otherwise env var
-backup_auth_pass=$(jq '.Management.DatabaseBackup."database-backup-auth-pass"' $cyaml)
-echo apicup subsys set $subsys_name database-backup-auth-pass "$backup_auth_pass" >> $outfile
+# use public key, or set env var for password
+#backup_auth_pass=$(jq '.Management.DatabaseBackup."database-backup-auth-pass"' $cyaml)
+backup_auth_pass=""
+echo apicup subsys set $subsys_name database-backup-auth-pass="$backup_auth_pass" >> $outfile
 
 backup_auth_ssh_key=$(jq '.Management.DatabaseBackup."database-backup-auth-ssh-key"' $cyaml)
 echo apicup certs set $subsys_name database-backup-auth-ssh-key $backup_auth_ssh_key >> $outfile
